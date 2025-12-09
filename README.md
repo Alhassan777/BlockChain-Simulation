@@ -91,6 +91,23 @@ This demo:
 5. Crashes a node, mines blocks, and recovers it (resync)
 6. Tests invalid transaction rejection
 
+### Running the Stress Test (10+ Nodes)
+
+```bash
+# Run stress test with default settings (10 nodes)
+python scripts/demo_stress.py
+
+# Customize the stress test
+python scripts/demo_stress.py --nodes 15 --transactions 100 --mining-rounds 10
+```
+
+This demo:
+1. Creates a network with 10+ nodes
+2. Connects them in ring topology with shortcuts
+3. Generates many transactions to test throughput
+4. Measures TPS, propagation delay, and orphan rate
+5. Displays comprehensive performance metrics
+
 ## 📊 Web Dashboard
 
 Access the dashboard at **http://localhost:5000** when running demos.
@@ -99,6 +116,8 @@ Features:
 - Real-time node status (chain length, balance, mining status)
 - Mempool monitoring
 - Peer connections visualization
+- **Performance metrics**: TPS, block time, propagation delay, orphan rate
+- Recent blocks table with mining statistics
 - Auto-refresh every 2 seconds
 
 ## 🔬 Testing Fault Scenarios
@@ -130,7 +149,7 @@ fault_injector.set_message_drop_rate("node0", 0.3)  # 30% drop rate
 
 ## 🎓 Educational Features
 
-### Implemented (Iterations 1-2)
+### Implemented (Iterations 1-3)
 
 ✅ **P2P Networking**
 - Gossip protocol with duplicate suppression
@@ -157,12 +176,26 @@ fault_injector.set_message_drop_rate("node0", 0.3)  # 30% drop rate
 - Node crash/restart with chain resync
 - Invalid transaction rejection
 
-### Future Work (Iteration 3)
+✅ **Merkle Trees**
+- Binary Merkle tree for transaction aggregation
+- O(log n) proof of inclusion
+- Efficient transaction verification
 
-⏳ Merkle trees for transaction aggregation  
-⏳ Stress testing with many nodes  
-⏳ Advanced metrics (TPS, propagation delay, orphan rate)  
-⏳ Persistent storage
+✅ **Scalability Testing**
+- Stress test with 10+ nodes
+- Configurable network topology
+- Performance benchmarking
+
+✅ **Metrics & Monitoring**
+- Transactions per second (TPS)
+- Block propagation delay
+- Orphan/stale block rate
+- Confirmation latency
+
+### Future Work (Optional)
+
+⏳ Persistent storage  
+⏳ Real ECDSA signatures (currently uses HMAC)
 
 ## 📁 Project Structure
 
@@ -171,17 +204,26 @@ Bitcoin (Blockchain)/
 ├── src/
 │   ├── __init__.py
 │   ├── transaction.py      # Transaction logic
-│   ├── block.py            # Block structure
+│   ├── block.py            # Block structure with Merkle root
 │   ├── blockchain.py       # Blockchain ledger
 │   ├── mempool.py          # Transaction pool
 │   ├── network.py          # P2P networking
 │   ├── consensus.py        # Proof-of-Work
 │   ├── node.py             # Complete node
-│   ├── dashboard.py        # Web visualization
-│   └── faults.py           # Fault injection
+│   ├── dashboard.py        # Web visualization with metrics
+│   ├── faults.py           # Fault injection
+│   ├── merkle.py           # Merkle tree implementation
+│   └── metrics.py          # Performance metrics collection
 ├── scripts/
 │   ├── demo_basic.py       # Basic demo
-│   └── demo_faults.py      # Fault tolerance demo
+│   ├── demo_faults.py      # Fault tolerance demo
+│   └── demo_stress.py      # Stress test (10+ nodes)
+├── tests/
+│   ├── test_transaction.py
+│   ├── test_block.py
+│   ├── test_blockchain.py
+│   ├── test_merkle.py      # Merkle tree tests
+│   └── test_metrics.py     # Metrics tests
 ├── requirements.txt
 └── README.md
 ```
@@ -231,6 +273,32 @@ When forks occur:
 - Each partition mines its own chain
 - Upon healing, nodes adopt the longest valid chain
 - Ensures eventual consistency
+
+### 5. Merkle Trees
+
+Transaction aggregation:
+```
+        Merkle Root
+        /         \
+     H(AB)       H(CD)
+     /   \       /   \
+   H(A)  H(B)  H(C)  H(D)
+    |     |     |     |
+   Tx1   Tx2   Tx3   Tx4
+```
+
+Benefits:
+- Single root hash represents all transactions
+- O(log n) proof of inclusion
+- Efficient light client verification
+
+### 6. Performance Metrics
+
+Real-time tracking of:
+- **TPS**: Transactions processed per second
+- **Block propagation delay**: Time for blocks to reach all nodes
+- **Orphan rate**: Percentage of blocks not in main chain
+- **Confirmation latency**: Time from tx submission to confirmation
 
 ## 🧪 Example Usage
 

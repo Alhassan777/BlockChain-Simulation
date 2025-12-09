@@ -1,21 +1,29 @@
 """
 Web dashboard for visualizing blockchain network state.
+Includes real-time metrics visualization.
 """
 
 from flask import Flask, jsonify, render_template_string
 from flask_cors import CORS
-from typing import List, Dict
+from typing import List, Dict, Optional
 import logging
+from src.metrics import get_metrics_collector, MetricsCollector
 
 
 class Dashboard:
     """Flask-based web dashboard for blockchain visualization."""
     
-    def __init__(self, nodes: List, port: int = 5000):
+    def __init__(
+        self, 
+        nodes: List, 
+        port: int = 5000,
+        metrics_collector: Optional[MetricsCollector] = None
+    ):
         self.nodes = nodes  # List of BlockchainNode instances
         self.app = Flask(__name__)
         CORS(self.app)
         self.port = port
+        self.metrics = metrics_collector or get_metrics_collector()
         
         # Disable Flask logging
         log = logging.getLogger('werkzeug')
@@ -41,6 +49,17 @@ class Dashboard:
                 ]
                 status.append(node_status)
             return jsonify(status)
+        
+        @self.app.route('/api/metrics')
+        def get_metrics():
+            """Get network performance metrics."""
+            summary = self.metrics.get_summary()
+            recent_blocks = self.metrics.get_recent_blocks_summary(count=10)
+            
+            return jsonify({
+                'summary': summary,
+                'recent_blocks': recent_blocks
+            })
         
         @self.app.route('/api/chain/<node_id>')
         def get_chain(node_id):
@@ -94,10 +113,21 @@ class Dashboard:
     
     def run(self):
         """Run the dashboard server."""
+        import sys
         print(f"\n{'='*60}")
         print(f"Dashboard running at http://localhost:{self.port}")
         print(f"{'='*60}\n")
-        self.app.run(host='0.0.0.0', port=self.port, debug=False, use_reloader=False)
+        sys.stdout.flush()
+        
+        # Suppress Flask startup message
+        import logging
+        cli_log = logging.getLogger('werkzeug')
+        cli_log.setLevel(logging.ERROR)
+        
+        try:
+            self.app.run(host='0.0.0.0', port=self.port, debug=False, use_reloader=False, threaded=True)
+        except Exception as e:
+            print(f"Dashboard error: {e}")
 
 
 HTML_TEMPLATE = """
@@ -119,13 +149,66 @@ HTML_TEMPLATE = """
             margin-bottom: 30px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
+        h2 {
+            color: #f39c12;
+            margin: 30px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #0f3460;
+        }
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
         }
+        
+        /* Metrics Section */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #16213e 0%, #1a1a2e 100%);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            border: 2px solid #0f3460;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            border-color: #3498db;
+        }
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #3498db;
+            margin-bottom: 5px;
+        }
+        .metric-value.highlight {
+            color: #f39c12;
+        }
+        .metric-value.success {
+            color: #27ae60;
+        }
+        .metric-value.warning {
+            color: #e74c3c;
+        }
+        .metric-label {
+            color: #95a5a6;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .metric-unit {
+            color: #7f8c8d;
+            font-size: 0.8em;
+        }
+        
+        /* Nodes Grid */
         .nodes-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
@@ -207,26 +290,56 @@ HTML_TEMPLATE = """
             border-radius: 5px;
             border-left: 3px solid #3498db;
         }
-        .network-section {
-            background: #16213e;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 30px;
-        }
         .peers-list {
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
-            margin-top: 15px;
+            margin-top: 10px;
         }
         .peer-badge {
             background: #0f3460;
-            padding: 8px 15px;
+            padding: 6px 12px;
             border-radius: 20px;
             color: #3498db;
             font-weight: bold;
-            border: 2px solid #3498db;
+            font-size: 0.85em;
+            border: 1px solid #3498db;
         }
+        
+        /* Recent Blocks Table */
+        .blocks-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #16213e;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .blocks-table th {
+            background: #0f3460;
+            color: #f39c12;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        .blocks-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #0f3460;
+        }
+        .blocks-table tr:hover {
+            background: rgba(52, 152, 219, 0.1);
+        }
+        .blocks-table .hash-cell {
+            font-family: 'Courier New', monospace;
+            color: #3498db;
+        }
+        .orphan-badge {
+            background: #e74c3c;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.8em;
+        }
+        
         .refresh-info {
             text-align: center;
             color: #95a5a6;
@@ -236,25 +349,105 @@ HTML_TEMPLATE = """
         .no-data {
             color: #95a5a6;
             font-style: italic;
+            text-align: center;
+            padding: 20px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>⛓️ Blockchain Network Dashboard</h1>
+        
+        <!-- Metrics Section -->
+        <h2>📊 Network Metrics</h2>
+        <div id="metrics-container" class="metrics-grid"></div>
+        
+        <!-- Nodes Section -->
+        <h2>🖥️ Network Nodes</h2>
         <div id="nodes-container" class="nodes-grid"></div>
+        
+        <!-- Recent Blocks Section -->
+        <h2>📦 Recent Blocks</h2>
+        <div id="blocks-container"></div>
+        
         <div class="refresh-info">Auto-refreshing every 2 seconds...</div>
     </div>
 
     <script>
-        async function fetchStatus() {
+        async function fetchData() {
             try {
-                const response = await fetch('/api/status');
-                const nodes = await response.json();
+                const [statusRes, metricsRes] = await Promise.all([
+                    fetch('/api/status'),
+                    fetch('/api/metrics')
+                ]);
+                
+                const nodes = await statusRes.json();
+                const metrics = await metricsRes.json();
+                
+                renderMetrics(metrics);
                 renderNodes(nodes);
+                renderRecentBlocks(metrics.recent_blocks);
             } catch (error) {
-                console.error('Error fetching status:', error);
+                console.error('Error fetching data:', error);
             }
+        }
+        
+        function formatNumber(num, decimals = 2) {
+            if (num === null || num === undefined) return 'N/A';
+            return num.toFixed(decimals);
+        }
+        
+        function formatMs(seconds) {
+            if (seconds === null || seconds === undefined) return 'N/A';
+            return (seconds * 1000).toFixed(1) + 'ms';
+        }
+
+        function renderMetrics(data) {
+            const summary = data.summary;
+            const container = document.getElementById('metrics-container');
+            
+            container.innerHTML = `
+                <div class="metric-card">
+                    <div class="metric-value highlight">${formatNumber(summary.current_tps)}</div>
+                    <div class="metric-label">Current TPS</div>
+                    <div class="metric-unit">transactions/second</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${formatNumber(summary.average_tps)}</div>
+                    <div class="metric-label">Average TPS</div>
+                    <div class="metric-unit">transactions/second</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value success">${summary.total_blocks}</div>
+                    <div class="metric-label">Total Blocks</div>
+                    <div class="metric-unit">mined</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${summary.total_transactions}</div>
+                    <div class="metric-label">Total Transactions</div>
+                    <div class="metric-unit">processed</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${formatNumber(summary.average_block_time)}</div>
+                    <div class="metric-label">Avg Block Time</div>
+                    <div class="metric-unit">seconds</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${formatMs(summary.average_propagation_delay)}</div>
+                    <div class="metric-label">Propagation Delay</div>
+                    <div class="metric-unit">average</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value ${summary.orphan_rate_percent > 5 ? 'warning' : 'success'}">${formatNumber(summary.orphan_rate_percent)}%</div>
+                    <div class="metric-label">Orphan Rate</div>
+                    <div class="metric-unit">${summary.total_orphans} orphans</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${formatNumber(summary.average_confirmation_latency)}</div>
+                    <div class="metric-label">Confirmation Latency</div>
+                    <div class="metric-unit">seconds</div>
+                </div>
+            `;
         }
 
         function renderNodes(nodes) {
@@ -309,7 +502,7 @@ HTML_TEMPLATE = """
                             ${node.mempool_transactions.map(tx => `
                                 <div class="tx-item">
                                     ${tx.sender.substring(0, 8)}... → ${tx.receiver.substring(0, 8)}...: 
-                                    <strong>${tx.amount}</strong> coins (fee: ${tx.fee})
+                                    <strong>${tx.amount.toFixed(2)}</strong> coins
                                 </div>
                             `).join('')}
                         </div>
@@ -318,12 +511,50 @@ HTML_TEMPLATE = """
                 </div>
             `).join('');
         }
+        
+        function renderRecentBlocks(blocks) {
+            const container = document.getElementById('blocks-container');
+            
+            if (!blocks || blocks.length === 0) {
+                container.innerHTML = '<div class="no-data">No blocks mined yet...</div>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <table class="blocks-table">
+                    <thead>
+                        <tr>
+                            <th>Block #</th>
+                            <th>Hash</th>
+                            <th>Miner</th>
+                            <th>Transactions</th>
+                            <th>Mining Time</th>
+                            <th>Propagation</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${blocks.map(block => `
+                            <tr>
+                                <td><strong>${block.index}</strong></td>
+                                <td class="hash-cell">${block.hash}</td>
+                                <td>${block.miner}</td>
+                                <td>${block.tx_count}</td>
+                                <td>${block.mining_time}s</td>
+                                <td>${block.propagation_delay_mean ? (block.propagation_delay_mean * 1000).toFixed(1) + 'ms' : 'N/A'}</td>
+                                <td>${block.is_orphan ? '<span class="orphan-badge">ORPHAN</span>' : '✓'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
 
         // Initial fetch
-        fetchStatus();
+        fetchData();
         
         // Auto-refresh every 2 seconds
-        setInterval(fetchStatus, 2000);
+        setInterval(fetchData, 2000);
     </script>
 </body>
 </html>

@@ -4,6 +4,7 @@ Main blockchain node that integrates all components.
 
 import asyncio
 import logging
+import time
 from typing import List, Optional
 from src.blockchain import Blockchain
 from src.mempool import Mempool
@@ -11,6 +12,7 @@ from src.transaction import Transaction
 from src.block import Block
 from src.network import P2PNode, Message
 from src.consensus import ProofOfWork
+from src.metrics import get_metrics_collector, MetricsCollector
 
 
 class BlockchainNode:
@@ -24,7 +26,8 @@ class BlockchainNode:
         difficulty: int = 2,
         block_reward: float = 50.0,
         miner_address: Optional[str] = None,
-        genesis_block: Optional[Block] = None
+        genesis_block: Optional[Block] = None,
+        metrics_collector: Optional[MetricsCollector] = None
     ):
         self.node_id = node_id
         self.miner_address = miner_address or node_id
@@ -35,12 +38,16 @@ class BlockchainNode:
         self.consensus = ProofOfWork(node_id, difficulty, block_reward)
         self.network = P2PNode(node_id, host, port, self._handle_network_message)
         
+        # Metrics collection
+        self.metrics = metrics_collector or get_metrics_collector()
+        
         # Mining state
         self.is_mining = False
         self.mining_task: Optional[asyncio.Task] = None
         self.stop_mining_event = asyncio.Event()  # Signal to stop mining
         self.auto_mine = False
         self.min_transactions_to_mine = 1
+        self._mining_start_time: Optional[float] = None
         
         # Setup logging
         self.logger = logging.getLogger(f"BlockchainNode-{node_id}")
@@ -95,6 +102,9 @@ class BlockchainNode:
             self.logger.warning(f"Rejected transaction {tx.hash[:8]}: {error}")
             return
         
+        # Record transaction received in metrics
+        self.metrics.record_transaction_received(tx.hash, self.node_id)
+        
         # Add to mempool
         self.mempool.add_transaction(tx)
         self.logger.info(f"Added transaction {tx.hash[:8]} to mempool")
@@ -111,11 +121,18 @@ class BlockchainNode:
         
         self.logger.info(f"Received block #{block.index} from {message.sender_id}")
         
+        # Record block received in metrics
+        self.metrics.record_block_received(block.hash, self.node_id)
+        
         # Try to add block
         added, error = self.blockchain.add_block(block)
         
         if added:
             self.logger.info(f"Added block #{block.index} to chain")
+            
+            # Record transaction confirmations
+            for tx in block.transactions:
+                self.metrics.record_transaction_confirmed(tx.hash, block.index)
             
             # Remove included transactions from mempool
             tx_hashes = [tx.hash for tx in block.transactions]
@@ -189,6 +206,9 @@ class BlockchainNode:
             self.logger.warning(f"Transaction rejected: {error}")
             return False
         
+        # Record transaction in metrics
+        self.metrics.record_transaction_submitted(tx.hash, self.node_id)
+        
         # Add to mempool
         self.mempool.add_transaction(tx)
         
@@ -209,6 +229,7 @@ class BlockchainNode:
         
         self.is_mining = True
         self.stop_mining_event.clear()  # Reset stop signal
+        self._mining_start_time = time.time()
         
         try:
             # Get transactions from mempool
@@ -237,6 +258,9 @@ class BlockchainNode:
                 stop_event=self.stop_mining_event
             )
             
+            # Calculate mining duration
+            mining_duration = time.time() - self._mining_start_time
+            
             # Check if we should still add this block (chain might have advanced)
             if success and self.blockchain.get_latest_block().index >= target_index:
                 self.logger.info(f"Block #{target_index} already mined by another node, discarding our work")
@@ -249,6 +273,19 @@ class BlockchainNode:
                 
                 if added:
                     self.logger.info(f"Successfully mined block #{block.index}")
+                    
+                    # Record block mined in metrics
+                    self.metrics.record_block_mined(
+                        block_hash=block.hash,
+                        block_index=block.index,
+                        miner_id=self.node_id,
+                        transaction_count=len(block.transactions),
+                        mining_duration=mining_duration
+                    )
+                    
+                    # Record transaction confirmations
+                    for tx in block.transactions:
+                        self.metrics.record_transaction_confirmed(tx.hash, block.index)
                     
                     # Remove transactions from mempool
                     tx_hashes = [tx.hash for tx in block.transactions]
@@ -270,6 +307,7 @@ class BlockchainNode:
             self.logger.error(f"Error during mining: {e}")
         finally:
             self.is_mining = False
+            self._mining_start_time = None
         
         return None
     

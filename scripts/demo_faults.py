@@ -5,6 +5,11 @@ Fault tolerance demo: Network partition, crash/recovery, invalid transactions.
 import asyncio
 import sys
 import os
+
+# Windows-specific: Set event loop policy before any async operations
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.node import BlockchainNode
@@ -13,23 +18,52 @@ from src.faults import FaultInjector
 from src.dashboard import Dashboard
 import threading
 
+# Force unbuffered output for real-time display
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(line_buffering=True)
+
+
+def flush_print(*args, **kwargs):
+    """Print with immediate flush."""
+    print(*args, **kwargs)
+    sys.stdout.flush()
+
+
+def check_port_available(port):
+    """Check if a port is available."""
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind(('127.0.0.1', port))
+            return True
+        except OSError:
+            return False
+
 
 async def main():
-    print("\n" + "="*60)
-    print("BLOCKCHAIN FAULT TOLERANCE DEMO")
-    print("="*60 + "\n")
+    flush_print("\n" + "="*60)
+    flush_print("BLOCKCHAIN FAULT TOLERANCE DEMO")
+    flush_print("="*60 + "\n")
     
     # Create shared genesis block
     from src.block import Block
-    print("Creating shared genesis block...")
+    flush_print("Creating shared genesis block...")
     genesis = Block.create_genesis_block()
-    print(f"  Genesis hash: {genesis.hash[:16]}...\n")
+    flush_print(f"  Genesis hash: {genesis.hash[:16]}...\n")
     
     # Create 4 nodes with same genesis
     nodes = []
     base_port = 8000
     
-    print("Creating nodes...")
+    # Check if ports are available
+    flush_print("Checking port availability...")
+    for i in range(4):
+        if not check_port_available(base_port + i):
+            flush_print(f"  ⚠ Port {base_port + i} is in use! Please close other instances.")
+            return
+    flush_print("  ✓ All ports available\n")
+    
+    flush_print("Creating nodes...")
     for i in range(4):
         node = BlockchainNode(
             node_id=f"node{i}",
@@ -42,7 +76,7 @@ async def main():
         nodes.append(node)
     
     # Start all nodes
-    print("\nStarting nodes...")
+    flush_print("\nStarting nodes...")
     for node in nodes:
         await node.start()
         await asyncio.sleep(0.2)

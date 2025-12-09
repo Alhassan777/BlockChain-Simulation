@@ -1,6 +1,7 @@
 """
 Block module for blockchain system.
 Handles block structure, hashing, and validation.
+Includes Merkle tree for efficient transaction verification.
 """
 
 import hashlib
@@ -8,6 +9,7 @@ import json
 import time
 from typing import List, Dict, Any, Optional
 from src.transaction import Transaction
+from src.merkle import MerkleTree, compute_merkle_root
 
 
 class Block:
@@ -21,7 +23,8 @@ class Block:
         timestamp: Optional[float] = None,
         nonce: int = 0,
         difficulty: int = 2,
-        block_hash: Optional[str] = None
+        block_hash: Optional[str] = None,
+        merkle_root: Optional[str] = None
     ):
         self.index = index
         self.transactions = transactions
@@ -30,12 +33,53 @@ class Block:
         self.nonce = nonce
         self.difficulty = difficulty
         self._hash = block_hash
+        self._merkle_root = merkle_root
+        self._merkle_tree: Optional[MerkleTree] = None
+    
+    @property
+    def merkle_root(self) -> str:
+        """Get Merkle root of transactions (lazy computation)."""
+        if self._merkle_root is None:
+            self._merkle_root = compute_merkle_root(self.transactions)
+        return self._merkle_root
+    
+    @property
+    def merkle_tree(self) -> MerkleTree:
+        """Get full Merkle tree for transaction proofs."""
+        if self._merkle_tree is None:
+            self._merkle_tree = MerkleTree(self.transactions)
+        return self._merkle_tree
+    
+    def get_transaction_proof(self, tx_index: int) -> List[tuple]:
+        """
+        Get Merkle proof for a transaction.
+        
+        Args:
+            tx_index: Index of transaction in block
+        
+        Returns:
+            Merkle proof as list of (hash, position) tuples
+        """
+        return self.merkle_tree.get_proof(tx_index)
+    
+    def verify_transaction_proof(self, tx: Transaction, proof: List[tuple]) -> bool:
+        """
+        Verify a transaction is in this block using Merkle proof.
+        
+        Args:
+            tx: Transaction to verify
+            proof: Merkle proof from get_transaction_proof()
+        
+        Returns:
+            True if transaction is verified, False otherwise
+        """
+        return self.merkle_tree.verify_proof(tx.hash, proof, self.merkle_root)
     
     def compute_hash(self) -> str:
-        """Compute SHA-256 hash of block."""
+        """Compute SHA-256 hash of block header (includes Merkle root)."""
         block_data = {
             'index': self.index,
-            'transactions': [tx.to_dict() for tx in self.transactions],
+            'merkle_root': self.merkle_root,  # Use Merkle root instead of full tx list
             'previous_hash': self.previous_hash,
             'timestamp': self.timestamp,
             'nonce': self.nonce,
@@ -113,7 +157,8 @@ class Block:
             'timestamp': self.timestamp,
             'nonce': self.nonce,
             'difficulty': self.difficulty,
-            'hash': self.hash
+            'hash': self.hash,
+            'merkle_root': self.merkle_root
         }
     
     @classmethod
@@ -127,7 +172,8 @@ class Block:
             timestamp=data['timestamp'],
             nonce=data['nonce'],
             difficulty=data['difficulty'],
-            block_hash=data.get('hash')
+            block_hash=data.get('hash'),
+            merkle_root=data.get('merkle_root')
         )
     
     @classmethod
