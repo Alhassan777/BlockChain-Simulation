@@ -1,353 +1,571 @@
-# Bitcoin-Inspired Blockchain Simulation
+# ⛓️ Blockchain Simulation
 
-A distributed blockchain system implementing peer-to-peer networking, Proof-of-Work consensus, and fault tolerance for educational purposes.
+A complete miniature blockchain system inspired by Bitcoin, implemented in Python. This educational project demonstrates core distributed systems concepts including P2P networking, consensus mechanisms, cryptographic hashing, and fault tolerance.
 
-## 🎯 Project Overview
+![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
+![Tests](https://img.shields.io/badge/Tests-87-passing.svg)
 
-This project implements a miniature blockchain system inspired by Bitcoin, demonstrating core distributed systems concepts:
-- **P2P Networking**: Decentralized gossip-based communication
-- **Hash-Linked Blockchain**: Tamper-evident chain using SHA-256
-- **Proof-of-Work Consensus**: Simulated mining with adjustable difficulty
-- **Transaction Propagation**: Network-wide transaction distribution
-- **Fault Tolerance**: Recovery from partitions, crashes, and invalid data
-- **Visualization**: Real-time web dashboard
+## 📋 Table of Contents
+
+- [Features](#-features)
+- [Architecture](#-architecture)
+- [Quick Start](#-quick-start)
+- [Installation](#-installation)
+- [Running the Demos](#-running-the-demos)
+- [Running Tests](#-running-tests)
+- [Project Structure](#-project-structure)
+- [Components](#-components)
+- [API Reference](#-api-reference)
+- [Distributed Systems Concepts](#-distributed-systems-concepts)
+- [Failure Modes Tested](#-failure-modes-tested)
+- [Performance Metrics](#-performance-metrics)
+
+## ✨ Features
+
+### Core Blockchain Features
+
+- **SHA-256 Cryptographic Hashing** - Tamper-evident block linking
+- **Merkle Trees** - Efficient transaction verification with O(log n) proofs
+- **Proof-of-Work Consensus** - Adjustable difficulty mining
+- **Leader-Based Consensus** - Alternative round-robin block proposal
+- **Account-Based State** - Balance and nonce tracking per address
+- **Transaction Fees & Rewards** - Economic incentive system
+
+### Networking
+
+- **P2P Gossip Protocol** - Decentralized message propagation
+- **asyncio TCP Networking** - High-performance async I/O
+- **Duplicate Suppression** - Efficient message deduplication
+- **Multiple Topologies** - Ring, mesh, and custom configurations
+
+### Fault Tolerance
+
+- **Network Partitions** - Split and heal network simulations
+- **Node Crash/Recovery** - Automatic chain resynchronization
+- **Message Loss & Delay** - Configurable fault injection
+- **Fork Resolution** - Longest-chain rule implementation
+
+### Observability
+
+- **Real-time Web Dashboard** - Live network visualization
+- **Comprehensive Metrics** - TPS, propagation delay, orphan rate
+- **Detailed Logging** - Per-node activity tracking
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                  Blockchain Node                    │
-├─────────────────────────────────────────────────────┤
-│  ┌──────────┐  ┌──────────┐  ┌─────────────────┐  │
-│  │Blockchain│  │  Mempool │  │ Proof-of-Work   │  │
-│  │ (Ledger) │  │  (Txs)   │  │  (Consensus)    │  │
-│  └──────────┘  └──────────┘  └─────────────────┘  │
-│                                                     │
-│  ┌───────────────────────────────────────────────┐ │
-│  │         P2P Network (Gossip Protocol)         │ │
-│  └───────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────┘
-           │                │                │
-           └────────────────┴────────────────┘
-                          ↓
-              ┌─────────────────────┐
-              │  Other Nodes (Peers)│
-              └─────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                        BLOCKCHAIN NODE                              │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌────────────┐ │
+│  │   Network   │  │  Consensus  │  │  Blockchain │  │   Mempool  │ │
+│  │   (P2P)     │◄─┤   (PoW)     │◄─┤   (State)   │◄─┤   (Txns)   │ │
+│  └──────┬──────┘  └─────────────┘  └─────────────┘  └────────────┘ │
+│         │                                                           │
+│         ▼                                                           │
+│  ┌─────────────────────────────────────────────────────────────────┐│
+│  │                    Message Types                                 ││
+│  │  • NEW_TX (Transaction broadcast)                               ││
+│  │  • NEW_BLOCK (Block announcement)                               ││
+│  │  • GET_CHAIN / CHAIN_RESPONSE (Sync)                           ││
+│  └─────────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Core Components
+## 🚀 Quick Start
 
-- **`src/transaction.py`**: Transaction structure with HMAC signatures
-- **`src/block.py`**: Block structure with hash-linking and PoW validation
-- **`src/blockchain.py`**: Ledger with fork resolution and state management
-- **`src/mempool.py`**: Pending transaction pool
-- **`src/network.py`**: Asyncio-based P2P networking with gossip protocol
-- **`src/consensus.py`**: Proof-of-Work mining mechanism
-- **`src/node.py`**: Complete blockchain node integrating all components
-- **`src/dashboard.py`**: Flask web dashboard for visualization
-- **`src/faults.py`**: Fault injection for testing
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/blockchain-simulation.git
+cd blockchain-simulation
 
-## 🚀 Getting Started
+# Create virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the basic demo
+python scripts/demo_basic.py
+
+# Open dashboard in browser
+# http://localhost:5001
+```
+
+## 📦 Installation
 
 ### Prerequisites
 
-- Python 3.10+
-- pip
+- Python 3.9 or higher
+- pip (Python package manager)
 
-### Installation
+### Step-by-Step Installation
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/yourusername/blockchain-simulation.git
+   cd blockchain-simulation
+   ```
+
+2. **Create a virtual environment** (recommended)
+
+   ```bash
+   python -m venv venv
+
+   # Activate on macOS/Linux:
+   source venv/bin/activate
+
+   # Activate on Windows:
+   venv\Scripts\activate
+   ```
+
+3. **Install dependencies**
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Verify installation**
+   ```bash
+   python scripts/run_tests.py --quick
+   ```
+
+### Dependencies
+
+| Package    | Version | Purpose                       |
+| ---------- | ------- | ----------------------------- |
+| flask      | 3.0.0   | Web dashboard server          |
+| flask-cors | 4.0.0   | Cross-origin resource sharing |
+| aiohttp    | 3.9.1   | Async HTTP support            |
+| pytest     | 7.4.3   | Testing framework             |
+
+## 🎮 Running the Demos
+
+### Demo 1: Basic Functionality
+
+Demonstrates node creation, P2P connections, transaction propagation, and mining.
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### Running the Basic Demo
-
-```bash
-# Run basic demo with 4 nodes
 python scripts/demo_basic.py
 ```
 
-This demo:
-1. Creates 4 blockchain nodes
-2. Connects them in a ring topology
-3. Mines initial blocks to give nodes coins
-4. Submits transactions and observes propagation
-5. Mines transactions into blocks
-6. Launches web dashboard at http://localhost:5000
+**What you'll see:**
 
-### Running the Fault Tolerance Demo
+- 4 nodes starting and connecting in a ring topology
+- Initial mining to bootstrap the economy
+- Transaction submission and propagation
+- Block mining with transaction inclusion
+- Final state showing balances and chain sync
+
+### Demo 2: Fault Tolerance
+
+Tests network resilience under adverse conditions.
 
 ```bash
-# Run fault tolerance demo
 python scripts/demo_faults.py
 ```
 
-This demo:
-1. Creates a mesh network of 4 nodes
-2. Partitions the network into two groups
-3. Mines blocks in both partitions (creates fork)
-4. Heals partition and demonstrates chain convergence
-5. Crashes a node, mines blocks, and recovers it (resync)
-6. Tests invalid transaction rejection
+**Scenarios tested:**
 
-### Running the Stress Test (10+ Nodes)
+- Network partition (split into two groups)
+- Chain divergence during partition
+- Partition healing and convergence
+- Node crash and recovery
+- Invalid transaction rejection
+
+### Demo 3: Stress Test
+
+Measures performance under high load.
 
 ```bash
-# Run stress test with default settings (10 nodes)
 python scripts/demo_stress.py
 
-# Customize the stress test
+# With custom parameters:
 python scripts/demo_stress.py --nodes 15 --transactions 100 --mining-rounds 10
 ```
 
-This demo:
-1. Creates a network with 10+ nodes
-2. Connects them in ring topology with shortcuts
-3. Generates many transactions to test throughput
-4. Measures TPS, propagation delay, and orphan rate
-5. Displays comprehensive performance metrics
+**Parameters:**
 
-## 📊 Web Dashboard
+- `--nodes`: Number of nodes (default: 10)
+- `--difficulty`: Mining difficulty (default: 2)
+- `--transactions`: Number of transactions (default: 50)
+- `--mining-rounds`: Mining rounds (default: 5)
 
-Access the dashboard at **http://localhost:5000** when running demos.
+### Web Dashboard
 
-Features:
-- Real-time node status (chain length, balance, mining status)
-- Mempool monitoring
-- Peer connections visualization
-- **Performance metrics**: TPS, block time, propagation delay, orphan rate
-- Recent blocks table with mining statistics
-- Auto-refresh every 2 seconds
+All demos start a web dashboard at **http://localhost:5001** showing:
 
-## 🔬 Testing Fault Scenarios
+- Network metrics (TPS, block time, orphan rate)
+- Node status (chain length, balance, peers)
+- Recent blocks (miner, transactions, propagation)
+- Real-time updates every 2 seconds
 
-### Network Partition
+## 🧪 Running Tests
 
-```python
-from src.faults import FaultInjector
+### Run All Tests
 
-fault_injector = FaultInjector(nodes)
-await fault_injector.partition_network(["node0", "node1"], ["node2", "node3"])
-# ... mine blocks ...
-await fault_injector.heal_partition()
+```bash
+# Using the test runner script (recommended)
+python scripts/run_tests.py
+
+# Using pytest directly
+pytest tests/ -v
 ```
 
-### Node Crash/Recovery
+### Quick Tests (Core Only)
 
-```python
-await fault_injector.crash_node("node1")
-# ... continue operations ...
-await fault_injector.restart_node("node1")
+```bash
+# Skip all integration tests - fastest option
+python scripts/run_tests.py --quick
+
+# Run only the core unit tests
+python scripts/run_tests.py --core
 ```
 
-### Message Drop
+### Include Network Integration Tests
 
-```python
-fault_injector.set_message_drop_rate("node0", 0.3)  # 30% drop rate
+```bash
+# Network tests are skipped by default (they can be slow)
+RUN_NETWORK_TESTS=1 python scripts/run_tests.py
 ```
 
-## 🎓 Educational Features
+### Verbose Output
 
-### Implemented (Iterations 1-3)
+```bash
+python scripts/run_tests.py -v
+```
 
-✅ **P2P Networking**
-- Gossip protocol with duplicate suppression
-- Mesh/ring topology support
-- Asynchronous message handling
+### Run Specific Test File
 
-✅ **Blockchain & Consensus**
-- SHA-256 hash-linked blocks
-- Proof-of-Work with adjustable difficulty
-- Longest-chain fork resolution
+```bash
+pytest tests/test_blockchain.py -v
+pytest tests/test_merkle.py -v
+pytest tests/test_double_spend.py -v
+```
 
-✅ **Transactions**
-- Account-based model (balances + nonces)
-- Transaction validation and signing
-- Fee mechanism
+### Test Coverage
 
-✅ **Rewards System**
-- Block rewards (50 coins per block)
-- Transaction fee collection
-- Coinbase transactions
+| Test File            | Tests   | Coverage                               |
+| -------------------- | ------- | -------------------------------------- |
+| test_transaction.py  | 6       | Transaction creation, hashing, signing |
+| test_block.py        | 6       | Block creation, mining, validation     |
+| test_blockchain.py   | 7       | Chain management, fork resolution      |
+| test_merkle.py       | 19      | Merkle tree, proofs, verification      |
+| test_metrics.py      | 14      | Performance metric collection          |
+| test_orphans.py      | 6       | Orphan block tracking                  |
+| test_double_spend.py | 6       | Double-spend prevention                |
+| test_consensus.py    | 14      | PoW and leader consensus               |
+| test_mempool.py      | 18      | Transaction pool management            |
+| test_network.py      | 10      | P2P networking (unit + integration)    |
+| test_faults.py       | 8       | Fault injection (unit + integration)   |
+| test_node.py         | 15      | BlockchainNode (unit + integration)    |
+| test_dashboard.py    | 10      | Dashboard API endpoints                |
+| **Total**            | **139** | 87 discovered, 17 network (skipped)    |
 
-✅ **Fault Tolerance**
-- Network partition recovery
-- Node crash/restart with chain resync
-- Invalid transaction rejection
-
-✅ **Merkle Trees**
-- Binary Merkle tree for transaction aggregation
-- O(log n) proof of inclusion
-- Efficient transaction verification
-
-✅ **Scalability Testing**
-- Stress test with 10+ nodes
-- Configurable network topology
-- Performance benchmarking
-
-✅ **Metrics & Monitoring**
-- Transactions per second (TPS)
-- Block propagation delay
-- Orphan/stale block rate
-- Confirmation latency
-
-### Future Work (Optional)
-
-⏳ Persistent storage  
-⏳ Real ECDSA signatures (currently uses HMAC)
+> **Note:** Network integration tests are skipped by default (they can be slow). Run with `RUN_NETWORK_TESTS=1` to include them.
 
 ## 📁 Project Structure
 
 ```
-Bitcoin (Blockchain)/
-├── src/
+blockchain-simulation/
+├── README.md              # This file
+├── LICENSE                # MIT License
+├── requirements.txt       # Python dependencies
+├── .gitignore            # Git ignore rules
+├── architecture.svg       # Architecture diagram
+│
+├── src/                   # Source code
 │   ├── __init__.py
-│   ├── transaction.py      # Transaction logic
-│   ├── block.py            # Block structure with Merkle root
-│   ├── blockchain.py       # Blockchain ledger
-│   ├── mempool.py          # Transaction pool
-│   ├── network.py          # P2P networking
-│   ├── consensus.py        # Proof-of-Work
-│   ├── node.py             # Complete node
-│   ├── dashboard.py        # Web visualization with metrics
-│   ├── faults.py           # Fault injection
-│   ├── merkle.py           # Merkle tree implementation
-│   └── metrics.py          # Performance metrics collection
-├── scripts/
-│   ├── demo_basic.py       # Basic demo
-│   ├── demo_faults.py      # Fault tolerance demo
-│   └── demo_stress.py      # Stress test (10+ nodes)
-├── tests/
-│   ├── test_transaction.py
-│   ├── test_block.py
-│   ├── test_blockchain.py
-│   ├── test_merkle.py      # Merkle tree tests
-│   └── test_metrics.py     # Metrics tests
-├── requirements.txt
-└── README.md
+│   ├── transaction.py     # Transaction class
+│   ├── block.py           # Block with Merkle root
+│   ├── blockchain.py      # Chain and state management
+│   ├── consensus.py       # PoW and leader consensus
+│   ├── network.py         # P2P networking
+│   ├── node.py            # Complete blockchain node
+│   ├── mempool.py         # Transaction pool
+│   ├── merkle.py          # Merkle tree implementation
+│   ├── metrics.py         # Performance metrics
+│   ├── faults.py          # Fault injection
+│   └── dashboard.py       # Web dashboard
+│
+├── scripts/               # Runnable scripts
+│   ├── demo_basic.py      # Basic functionality demo
+│   ├── demo_faults.py     # Fault tolerance demo
+│   ├── demo_stress.py     # Stress test demo
+│   └── run_tests.py       # Test runner
+│
+└── tests/                 # Unit tests (139 tests)
+    ├── __init__.py
+    ├── test_transaction.py
+    ├── test_block.py
+    ├── test_blockchain.py
+    ├── test_merkle.py
+    ├── test_metrics.py
+    ├── test_orphans.py
+    ├── test_double_spend.py
+    ├── test_consensus.py
+    ├── test_mempool.py
+    ├── test_network.py
+    ├── test_faults.py
+    ├── test_node.py
+    └── test_dashboard.py
 ```
 
-## 🔍 Key Concepts Demonstrated
+## 🔧 Components
 
-### 1. Hash-Linked Immutability
-
-Each block contains:
-```python
-{
-    'index': 5,
-    'previous_hash': '00a3f7b2...', 
-    'transactions': [...],
-    'nonce': 12847,
-    'hash': '0012c4e9...'
-}
-```
-
-Changing any past block invalidates all subsequent blocks.
-
-### 2. Proof-of-Work Consensus
-
-Mining requires finding a nonce such that:
-```
-SHA256(block_data + nonce).startswith('00')  # Difficulty = 2
-```
-
-This computational puzzle ensures:
-- Agreement on the next block
-- Resistance to trivial attacks
-- Controlled block production rate
-
-### 3. Gossip Protocol
-
-Message propagation:
-1. Node receives message
-2. Checks if seen before (duplicate suppression)
-3. Processes message
-4. Forwards to all peers (except sender)
-
-Results in network-wide propagation with O(log N) hops.
-
-### 4. Longest-Chain Rule
-
-When forks occur:
-- Each partition mines its own chain
-- Upon healing, nodes adopt the longest valid chain
-- Ensures eventual consistency
-
-### 5. Merkle Trees
-
-Transaction aggregation:
-```
-        Merkle Root
-        /         \
-     H(AB)       H(CD)
-     /   \       /   \
-   H(A)  H(B)  H(C)  H(D)
-    |     |     |     |
-   Tx1   Tx2   Tx3   Tx4
-```
-
-Benefits:
-- Single root hash represents all transactions
-- O(log n) proof of inclusion
-- Efficient light client verification
-
-### 6. Performance Metrics
-
-Real-time tracking of:
-- **TPS**: Transactions processed per second
-- **Block propagation delay**: Time for blocks to reach all nodes
-- **Orphan rate**: Percentage of blocks not in main chain
-- **Confirmation latency**: Time from tx submission to confirmation
-
-## 🧪 Example Usage
+### Transaction (`src/transaction.py`)
 
 ```python
-import asyncio
-from src.node import BlockchainNode
 from src.transaction import Transaction
 
-async def example():
-    # Create node
-    node = BlockchainNode("node0", "127.0.0.1", 8000)
-    await node.start()
-    
-    # Create transaction
-    tx = Transaction(
-        sender="alice",
-        receiver="bob",
-        amount=10.0,
-        fee=0.5,
-        nonce=0
-    )
-    tx.sign("alice")
-    
-    # Submit transaction
-    await node.submit_transaction(tx)
-    
-    # Mine block
-    block = await node.mine_next_block()
-    print(f"Mined block: {block.hash}")
+# Create a transaction
+tx = Transaction(
+    sender="alice",
+    receiver="bob",
+    amount=10.0,
+    fee=0.5,
+    nonce=0
+)
 
-asyncio.run(example())
+# Sign it (toy HMAC signature)
+tx.sign("alice_private_key")
+
+# Validate
+is_valid, error = tx.is_valid()
+
+# Create coinbase (mining reward)
+coinbase = Transaction.create_coinbase("miner_address", reward=50.0)
 ```
 
-## 📈 Performance Notes
+### Block (`src/block.py`)
 
-- **Difficulty 2**: ~0.1-1s per block (demo-friendly)
-- **Difficulty 3**: ~1-10s per block
-- **Difficulty 4**: ~10-100s per block
-
-Adjust difficulty in node creation:
 ```python
-node = BlockchainNode(..., difficulty=3)
+from src.block import Block
+
+# Create a block
+block = Block(
+    index=1,
+    transactions=[coinbase, tx1, tx2],
+    previous_hash="abc123...",
+    difficulty=2
+)
+
+# Mine it (find valid nonce)
+success = block.mine(max_iterations=100000)
+
+# Verify Merkle proof for a transaction
+proof = block.get_transaction_proof(tx_index=1)
+is_valid = block.verify_transaction_proof(tx, proof)
+```
+
+### Blockchain (`src/blockchain.py`)
+
+```python
+from src.blockchain import Blockchain
+
+# Create blockchain (auto-creates genesis)
+blockchain = Blockchain(difficulty=2)
+
+# Add a block
+added, error = blockchain.add_block(block)
+
+# Check balance
+balance = blockchain.get_balance("alice")
+
+# Fork resolution (longest chain wins)
+replaced, error = blockchain.replace_chain(longer_chain)
+```
+
+### Node (`src/node.py`)
+
+```python
+from src.node import BlockchainNode
+import asyncio
+
+async def main():
+    # Create node
+    node = BlockchainNode(
+        node_id="node0",
+        host="127.0.0.1",
+        port=8000,
+        difficulty=2,
+        block_reward=50.0
+    )
+
+    # Start networking
+    await node.start()
+
+    # Connect to peer
+    await node.connect_to_peer("node1", "127.0.0.1", 8001)
+
+    # Submit transaction
+    await node.submit_transaction(tx)
+
+    # Mine next block
+    block = await node.mine_next_block()
+
+    # Get status
+    status = node.get_status()
+
+asyncio.run(main())
+```
+
+### Merkle Tree (`src/merkle.py`)
+
+```python
+from src.merkle import MerkleTree, compute_merkle_root
+
+# Build tree from transactions
+tree = MerkleTree(transactions)
+
+# Get root hash
+root = tree.root
+
+# Generate proof for transaction
+proof = tree.get_proof(tx_index=2)
+
+# Verify proof
+is_valid = tree.verify_proof(tx_hash, proof, root)
+```
+
+## 📚 API Reference
+
+### BlockchainNode Methods
+
+| Method                            | Description                        |
+| --------------------------------- | ---------------------------------- |
+| `start()`                         | Start the node's TCP server        |
+| `stop()`                          | Stop node and close connections    |
+| `connect_to_peer(id, host, port)` | Connect to another node            |
+| `submit_transaction(tx)`          | Submit transaction to network      |
+| `mine_next_block()`               | Mine a new block                   |
+| `get_status()`                    | Get node status dict               |
+| `enable_auto_mining()`            | Auto-mine when transactions arrive |
+
+### Blockchain Methods
+
+| Method                      | Description               |
+| --------------------------- | ------------------------- |
+| `add_block(block)`          | Add block to chain        |
+| `replace_chain(chain)`      | Replace with longer chain |
+| `get_balance(address)`      | Get account balance       |
+| `get_nonce(address)`        | Get account nonce         |
+| `can_apply_transaction(tx)` | Check if tx is valid      |
+| `validate_chain(chain)`     | Validate entire chain     |
+
+### Metrics Methods
+
+| Method                              | Description                 |
+| ----------------------------------- | --------------------------- |
+| `calculate_tps()`                   | Current transactions/second |
+| `get_orphan_rate()`                 | Orphan block percentage     |
+| `get_average_block_time()`          | Mean time between blocks    |
+| `get_block_propagation_delay(hash)` | Block propagation stats     |
+| `get_summary()`                     | All metrics as dict         |
+| `print_summary()`                   | Print formatted metrics     |
+
+## 🎓 Distributed Systems Concepts
+
+This project demonstrates several key distributed systems concepts:
+
+### 1. Gossip Protocol
+
+Messages (transactions, blocks) propagate through the network via gossip. Each node forwards messages to its peers, with duplicate suppression preventing infinite loops.
+
+### 2. Consensus
+
+Two mechanisms are implemented:
+
+- **Proof-of-Work**: Nodes compete to find a valid hash (leading zeros)
+- **Leader-Based**: Round-robin leader proposes blocks
+
+### 3. Fork Resolution
+
+When multiple valid chains exist, the **longest-chain rule** determines the canonical chain. Shorter chains are orphaned.
+
+### 4. State Machine Replication
+
+All nodes maintain the same state (balances, nonces) by applying the same transactions in the same order.
+
+### 5. Fault Tolerance
+
+The system handles:
+
+- **Crash failures**: Nodes restart and resync
+- **Network partitions**: Chains diverge, then converge after healing
+- **Byzantine behavior**: Invalid transactions are rejected
+
+### 6. Eventual Consistency
+
+Nodes may temporarily disagree but eventually converge to the same state through gossip and fork resolution.
+
+## 🔥 Failure Modes Tested
+
+| Failure Mode         | Implementation                               | Demo                 |
+| -------------------- | -------------------------------------------- | -------------------- |
+| Node crash/restart   | `FaultInjector.crash_node()`                 | demo_faults.py       |
+| Message loss         | `network.message_drop_prob`                  | Configurable         |
+| Message delay        | `network.message_delay_ms`                   | Configurable         |
+| Network partition    | `FaultInjector.partition_network()`          | demo_faults.py       |
+| Invalid transactions | `FaultInjector.inject_invalid_transaction()` | demo_faults.py       |
+| Double-spend         | Nonce validation                             | test_double_spend.py |
+| High load            | demo_stress.py                               | demo_stress.py       |
+
+## 📊 Performance Metrics
+
+The system tracks comprehensive performance metrics:
+
+| Metric               | Description                             | Method                               |
+| -------------------- | --------------------------------------- | ------------------------------------ |
+| TPS                  | Transactions per second                 | `calculate_tps()`                    |
+| Block Time           | Average time between blocks             | `get_average_block_time()`           |
+| Propagation Delay    | Time for blocks to reach all nodes      | `get_block_propagation_delay()`      |
+| Orphan Rate          | Percentage of orphaned blocks           | `get_orphan_rate()`                  |
+| Confirmation Latency | Time from tx submission to confirmation | `get_average_confirmation_latency()` |
+| Mining Time          | Time to mine each block                 | `get_average_mining_time()`          |
+
+### Sample Stress Test Results (10 nodes, difficulty 2)
+
+```
+📦 Blocks:
+  Total mined: 15
+  Blocks/minute: 12.5
+  Average block time: 4.8s
+
+📝 Transactions:
+  Total processed: 50
+  Average TPS: 2.1
+  Avg confirmation latency: 8.5s
+
+🌐 Network:
+  Avg propagation delay: 45ms
+  Orphan rate: 6.67%
 ```
 
 ## 🤝 Contributing
 
-This is an educational project for Minerva University's Distributed Systems course (IL181.007).
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Bitcoin whitepaper by Satoshi Nakamoto
+- "The Little Book of Bitcoin"
+- "Inventing Bitcoin" by Yan Pritzker
+- Kalam fi El-Programming podcast (Episode 32)
 
 ---
 
-**Note**: This is a simplified blockchain for educational purposes. It uses toy signatures (HMAC) instead of real cryptographic signatures (ECDSA) and is not suitable for production use.
-
+**Built for educational purposes to demonstrate blockchain and distributed systems concepts.**

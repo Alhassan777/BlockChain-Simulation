@@ -12,120 +12,125 @@ from src.metrics import get_metrics_collector, MetricsCollector
 
 class Dashboard:
     """Flask-based web dashboard for blockchain visualization."""
-    
+
     def __init__(
-        self, 
-        nodes: List, 
+        self,
+        nodes: List,
         port: int = 5000,
-        metrics_collector: Optional[MetricsCollector] = None
+        metrics_collector: Optional[MetricsCollector] = None,
     ):
         self.nodes = nodes  # List of BlockchainNode instances
         self.app = Flask(__name__)
         CORS(self.app)
         self.port = port
         self.metrics = metrics_collector or get_metrics_collector()
-        
+
         # Disable Flask logging
-        log = logging.getLogger('werkzeug')
+        log = logging.getLogger("werkzeug")
         log.setLevel(logging.ERROR)
-        
+
         self._setup_routes()
-    
+
     def _setup_routes(self):
         """Setup Flask routes."""
-        
-        @self.app.route('/')
+
+        @self.app.route("/")
         def index():
             return render_template_string(HTML_TEMPLATE)
-        
-        @self.app.route('/api/status')
+
+        @self.app.route("/api/status")
         def get_status():
             """Get status of all nodes."""
             status = []
             for node in self.nodes:
                 node_status = node.get_status()
-                node_status['mempool_transactions'] = [
+                node_status["mempool_transactions"] = [
                     tx.to_dict() for tx in node.mempool.get_all_transactions()[:10]
                 ]
                 status.append(node_status)
             return jsonify(status)
-        
-        @self.app.route('/api/metrics')
+
+        @self.app.route("/api/metrics")
         def get_metrics():
             """Get network performance metrics."""
             summary = self.metrics.get_summary()
             recent_blocks = self.metrics.get_recent_blocks_summary(count=10)
-            
-            return jsonify({
-                'summary': summary,
-                'recent_blocks': recent_blocks
-            })
-        
-        @self.app.route('/api/chain/<node_id>')
+
+            return jsonify({"summary": summary, "recent_blocks": recent_blocks})
+
+        @self.app.route("/api/chain/<node_id>")
         def get_chain(node_id):
             """Get full blockchain for a specific node."""
             node = next((n for n in self.nodes if n.node_id == node_id), None)
             if not node:
-                return jsonify({'error': 'Node not found'}), 404
-            
+                return jsonify({"error": "Node not found"}), 404
+
             chain_data = []
             for block in node.blockchain.chain:
                 block_dict = block.to_dict()
                 # Limit transactions to prevent huge response
-                if len(block_dict['transactions']) > 20:
-                    block_dict['transactions'] = block_dict['transactions'][:20]
-                    block_dict['transactions_truncated'] = True
+                if len(block_dict["transactions"]) > 20:
+                    block_dict["transactions"] = block_dict["transactions"][:20]
+                    block_dict["transactions_truncated"] = True
                 chain_data.append(block_dict)
-            
-            return jsonify({
-                'node_id': node_id,
-                'chain': chain_data,
-                'state': node.blockchain.state
-            })
-        
-        @self.app.route('/api/network')
+
+            return jsonify(
+                {
+                    "node_id": node_id,
+                    "chain": chain_data,
+                    "state": node.blockchain.state,
+                }
+            )
+
+        @self.app.route("/api/network")
         def get_network():
             """Get network topology."""
-            topology = {
-                'nodes': [],
-                'edges': []
-            }
-            
+            topology = {"nodes": [], "edges": []}
+
             for node in self.nodes:
-                topology['nodes'].append({
-                    'id': node.node_id,
-                    'label': node.node_id,
-                    'chain_length': node.blockchain.get_chain_length(),
-                    'mempool_size': node.mempool.size()
-                })
-                
+                topology["nodes"].append(
+                    {
+                        "id": node.node_id,
+                        "label": node.node_id,
+                        "chain_length": node.blockchain.get_chain_length(),
+                        "mempool_size": node.mempool.size(),
+                    }
+                )
+
                 for peer_id in node.network.get_peer_ids():
                     # Add edge (avoid duplicates by sorting IDs)
-                    edge_id = '-'.join(sorted([node.node_id, peer_id]))
-                    if edge_id not in [e['id'] for e in topology['edges']]:
-                        topology['edges'].append({
-                            'id': edge_id,
-                            'from': node.node_id,
-                            'to': peer_id
-                        })
-            
+                    edge_id = "-".join(sorted([node.node_id, peer_id]))
+                    if edge_id not in [e["id"] for e in topology["edges"]]:
+                        topology["edges"].append(
+                            {"id": edge_id, "from": node.node_id, "to": peer_id}
+                        )
+
             return jsonify(topology)
-    
+
     def run(self):
         """Run the dashboard server."""
         import sys
+
         print(f"\n{'='*60}")
         print(f"Dashboard running at http://localhost:{self.port}")
         print(f"{'='*60}\n")
         sys.stdout.flush()
-        
+
         # Suppress Flask startup message
         import logging
-        cli_log = logging.getLogger('werkzeug')
+
+        cli_log = logging.getLogger("werkzeug")
         cli_log.setLevel(logging.ERROR)
-        
+
         try:
-            self.app.run(host='0.0.0.0', port=self.port, debug=False, use_reloader=False, threaded=True)
+            # Use 127.0.0.1 instead of 0.0.0.0 to avoid macOS firewall issues
+            self.app.run(
+                host="127.0.0.1",
+                port=self.port,
+                debug=False,
+                use_reloader=False,
+                threaded=True,
+            )
         except Exception as e:
             print(f"Dashboard error: {e}")
 
@@ -352,11 +357,73 @@ HTML_TEMPLATE = """
             text-align: center;
             padding: 20px;
         }
+        
+        /* Info Banner */
+        .info-banner {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            border: 2px solid #3498db;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0 30px 0;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+        }
+        .banner-content h3 {
+            color: #3498db;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+        .banner-content p {
+            color: #ecf0f1;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+        }
+        .command-box {
+            background: #1a1a2e;
+            border-left: 4px solid #f39c12;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .command-box strong {
+            color: #f39c12;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .command-box code {
+            color: #3498db;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+            background: #0f3460;
+            padding: 8px 12px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>⛓️ Blockchain Network Dashboard</h1>
+        
+        <!-- Info Banner -->
+        <div id="info-banner" class="info-banner" style="display: none;">
+            <div class="banner-content">
+                <h3>🚀 No Blockchain Network Detected</h3>
+                <p>To start the blockchain simulation, run one of these commands in your terminal:</p>
+                <div class="command-box">
+                    <strong>Basic Demo:</strong><br>
+                    <code>python BlockChain-Simulation/scripts/demo_basic.py</code>
+                </div>
+                <div class="command-box">
+                    <strong>Fault Tolerance Demo:</strong><br>
+                    <code>python BlockChain-Simulation/scripts/demo_faults.py</code>
+                </div>
+                <div class="command-box">
+                    <strong>Stress Test:</strong><br>
+                    <code>python BlockChain-Simulation/scripts/demo_stress.py</code>
+                </div>
+            </div>
+        </div>
         
         <!-- Metrics Section -->
         <h2>📊 Network Metrics</h2>
@@ -452,6 +519,17 @@ HTML_TEMPLATE = """
 
         function renderNodes(nodes) {
             const container = document.getElementById('nodes-container');
+            const banner = document.getElementById('info-banner');
+            
+            // Show/hide banner based on whether nodes exist
+            if (!nodes || nodes.length === 0) {
+                banner.style.display = 'block';
+                container.innerHTML = '<div class="no-data">Waiting for blockchain network to start...</div>';
+                return;
+            } else {
+                banner.style.display = 'none';
+            }
+            
             container.innerHTML = nodes.map(node => `
                 <div class="node-card ${node.is_mining ? 'mining' : ''}">
                     <div class="node-header">
@@ -559,4 +637,3 @@ HTML_TEMPLATE = """
 </body>
 </html>
 """
-

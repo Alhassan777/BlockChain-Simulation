@@ -1,17 +1,46 @@
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+
+# Distribution / packaging
 .Python
 env/
 venv/
+.venv/
 *.egg-info/
 dist/
 build/
-*.log
+*.egg
+
+# IDE
 .vscode/
 .idea/
-*.db
-node_data/
-docs/
+*.swp
+*.swo
+*~
 
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Logs
+*.log
+
+# Database
+*.db
+*.sqlite3
+
+# Project specific
+node_data/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
